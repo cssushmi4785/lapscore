@@ -129,6 +129,22 @@ app.get('/api/ai/ram-calculator', async (req, res) => {
   }
 });
 
+// DEEP SYSTEM INTEGRATION
+app.get('/api/battery/deep', async (req, res) => {
+  const { getBatteryDeepCached } = require('./batteryDeep');
+  res.json(await getBatteryDeepCached());
+});
+
+app.get('/api/throttle/realtime', async (req, res) => {
+  const { getThrottleData } = require('./typeperfSampler');
+  res.json(await getThrottleData());
+});
+
+app.get('/api/gpu', async (req, res) => {
+  const { getGpuData } = require('./gpuMonitor');
+  res.json(await getGpuData());
+});
+
 // POWER TRACKING
 app.get('/api/power/stats', (req, res) => {
   res.json(powerTracker.getStats());

@@ -14,7 +14,7 @@ module.exports = {
   files: [
     'electron/**/*',
     'server/**/*',
-    'client/dist/**/*',
+    // 'client/dist/**/*',  // Moved to extraResources
     'assets/**/*',
     'package.json',
   ],
@@ -26,6 +26,10 @@ module.exports = {
   ],
 
   extraResources: [
+    {
+      from: 'client/dist',
+      to: 'client/dist',
+    },
     {
       from: 'assets',
       to: 'assets',

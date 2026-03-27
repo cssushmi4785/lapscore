@@ -2,6 +2,7 @@ const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, Notification } = r
 const path = require('path');
 const http = require('http');
 const fs = require('fs');
+const { spawn } = require('child_process');
 const { createTray } = require('./tray');
 const { setupUpdater, installUpdate } = require('./updater');
 
@@ -33,24 +34,22 @@ function getDataDir() {
 function startServer() {
   const serverPath = path.join(__dirname, '..', 'server', 'index.js');
 
-  // Use system Node.js (not Electron's embedded Node) to avoid native module ABI mismatch
-  // better-sqlite3 is compiled for system Node, not Electron's Node
-  const { spawn } = require('child_process');
-  
-  const nodePath = process.env.SYSTEM_NODE || 'node';
-  
-  serverProcess = spawn(nodePath, [serverPath], {
+  // Use current Electron as Node to ensure ABI match for better-sqlite3
+  const clientDistPath = app.isPackaged
+    ? path.join(process.resourcesPath, 'client', 'dist')
+    : path.join(app.getAppPath(), 'client', 'dist');
+
+  serverProcess = spawn(process.execPath, [serverPath], {
     env: {
       ...process.env,
+      ELECTRON_RUN_AS_NODE: '1',
       AUTO_OPEN: 'false',
       ELECTRON: 'true',
       LAPSCORE_DATA_DIR: getDataDir(),
-      CLIENT_DIST_PATH: isDev 
-        ? path.join(__dirname, '..', 'client', 'dist')
-        : path.join(process.resourcesPath, 'client', 'dist'),
+      CLIENT_DIST_PATH: clientDistPath,
     },
     stdio: ['pipe', 'pipe', 'pipe'],
-    windowsHide: true,           // Don't show cmd window on Windows
+    windowsHide: true,
   });
 
   serverProcess.stdout?.on('data', (data) => {
@@ -71,33 +70,34 @@ function startServer() {
 }
 
 // ── 2. Wait for server to be ready ───────────────────────────
-function waitForServer(timeoutMs = 30000) {
+const waitForServer = (port, timeout = 30000) => {
   return new Promise((resolve, reject) => {
-    const startTime = Date.now();
-
-    const check = setInterval(() => {
-      if (Date.now() - startTime > timeoutMs) {
-        clearInterval(check);
-        reject(new Error('Server startup timed out'));
+    const start = Date.now();
+    const interval = 500;
+    
+    const check = () => {
+      http.get(`http://localhost:${port}/api/health`, (res) => {
+        if (res.statusCode === 200) {
+          console.log(`[LapScore] Server ready on port ${port}`);
+          resolve(port);
+        } else {
+          retry();
+        }
+        res.resume();
+      }).on('error', retry);
+    };
+    
+    const retry = () => {
+      if (Date.now() - start > timeout) {
+        reject(new Error(`Server failed to start within ${timeout/1000}s`));
         return;
       }
-
-      const req = http.get(`${SERVER_URL}/api/health`, (res) => {
-        if (res.statusCode === 200) {
-          clearInterval(check);
-          resolve();
-        }
-        res.resume(); // Consume response to free memory
-      });
-
-      req.on('error', () => {
-        // Server not ready yet — keep polling
-      });
-
-      req.setTimeout(1000, () => req.destroy());
-    }, 500);
+      setTimeout(check, interval);
+    };
+    
+    check();
   });
-}
+};
 
 // ── Splash Screen ────────────────────────────────────────────
 function createSplash() {
@@ -164,18 +164,38 @@ function createWindow() {
 
   mainWindow.loadURL(SERVER_URL);
 
-  // Show window only when content is painted (no white flash)
+  // Show window only when content is painted
   mainWindow.once('ready-to-show', () => {
     closeSplash();
-
-    // If launched with --hidden, don't show the window initially
     if (!process.argv.includes('--hidden')) {
       mainWindow.show();
     }
-    
-    if (isDev) {
-      mainWindow.webContents.openDevTools({ mode: 'detach' });
+  });
+
+  // Open DevTools automatically if window is blank after 5 seconds
+  setTimeout(() => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.executeJavaScript('document.body.innerHTML').then(html => {
+        if (!html || html.trim() === '') {
+          mainWindow.webContents.openDevTools();
+          console.error('[LapScore] Black screen detected — opening DevTools');
+        }
+      });
     }
+  }, 5000);
+
+  // Handle load failure
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, url) => {
+    console.error(`[LapScore] Page load failed: ${url} Error: ${errorCode} — ${errorDescription}`);
+    
+    mainWindow.loadURL(`data:text/html,
+      <body style="background:#080810;color:#ef4444;font-family:sans-serif;padding:40px">
+        <h2>⚠ LapScore failed to start</h2>
+        <p>Error ${errorCode}: ${errorDescription}</p>
+        <p>Try restarting the application.</p>
+        <p style="color:#475569;font-size:12px">Check that port 7821 is not blocked by your firewall.</p>
+      </body>
+    `);
   });
 
   // Periodically update the taskbar badge with the latest score/status
@@ -303,21 +323,26 @@ app.whenReady().then(async () => {
   // Set up IPC before window creation
   setupIPC();
 
-  // Wait until server is accepting connections
-  try {
-    console.log('[Electron] Waiting for server to be ready...');
-    await waitForServer();
-    console.log('[Electron] Server is ready!');
-  } catch (err) {
-    console.error('[Electron] Server failed to start:', err.message);
-    closeSplash();
-  }
-
-  createWindow();
-  tray = createTray(mainWindow, () => currentScore);
-
-  // Set up auto-updater (only runs in production)
-  setupUpdater(mainWindow);
+  // Wait until server is ready
+  waitForServer(SERVER_PORT, 30000)
+    .then(() => {
+      createWindow();
+      tray = createTray(mainWindow, () => currentScore);
+      setupUpdater(mainWindow);
+    })
+    .catch((err) => {
+      console.error('[LapScore] Server timeout:', err.message);
+      closeSplash();
+      createWindow(); // Create window anyway to show the error state
+      mainWindow.loadURL(`data:text/html,
+        <body style="background:#080810;color:#f59e0b;font-family:sans-serif;padding:40px">
+          <h2>⏱ LapScore is taking too long to start</h2>
+          <p>The background service did not respond.</p>
+          <p>Please close and reopen the application.</p>
+          <p style="color:#475569;font-size:12px">Common causes: antivirus blocking, port 7821 in use.</p>
+        </body>
+      `);
+    });
 });
 
 // macOS: re-create window when dock icon is clicked

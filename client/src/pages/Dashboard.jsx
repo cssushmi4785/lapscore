@@ -19,6 +19,7 @@ import AIReadinessCard from '../components/AIReadinessCard';
 import StartupPanel from '../components/StartupPanel';
 import AlertBanner from '../components/AlertBanner';
 import AISessionPanel from '../components/AISessionPanel';
+import GpuPanel from '../components/GpuPanel';
 import { useLiveStream } from '../hooks/useLiveStream';
 import { DataProvider } from '../context/DataContext';
 import { DashboardSkeleton } from '../components/DashboardSkeleton';
@@ -177,13 +178,16 @@ export default function Dashboard() {
               <CpuPanel isScanning={scanning} />
             </div>
             <div className="animate-fadeInUp" style={{ animationDelay: '400ms' }}>
-              <RamPanel mem={data.raw?.memLayout} isScanning={scanning} />
+              <RamPanel ram={data.raw?.ram} isScanning={scanning} />
+            </div>
+            <div className="animate-fadeInUp" style={{ animationDelay: '450ms' }}>
+              <GpuPanel gpuData={data.raw?.gpu?.[0]} />
             </div>
             <div className="animate-fadeInUp" style={{ animationDelay: '500ms' }}>
               <DiskPanel disks={data.raw?.disks?.Physical || []} />
             </div>
             <div className="animate-fadeInUp" style={{ animationDelay: '600ms' }}>
-              <ThermalPanel sensors={data.raw?.thermals || data.raw?.thermalSensors} />
+              <ThermalPanel sensors={data.raw?.thermals || []} />
             </div>
           </div>
 

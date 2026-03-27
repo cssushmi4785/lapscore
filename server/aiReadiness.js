@@ -48,15 +48,15 @@ const models = [
 async function getAIReadiness() {
   const mem = await si.mem();
   const cpu = await si.cpu();
-  const graphics = await si.graphics();
+  const { getGpuData } = require('./gpuMonitor');
+  const gpuData = await getGpuData();
   
   const ramGB = mem.total / 1e9;
   const cpuBrand = cpu.brand || '';
   const cpuCores = cpu.cores || 0;
   
-  const gpu = graphics.controllers[0];
-  const gpuName = gpu?.model || 'Integrated';
-  const gpuVramMB = gpu?.vram || 0;
+  const gpuName = gpuData.present ? (gpuData.name || 'Dedicated GPU') : 'Integrated';
+  const gpuVramMB = gpuData.present ? (gpuData.memTotalMB || gpuData.ramMB || 0) : 0;
   const gpuVramGB = gpuVramMB / 1024;
   
   let hasNPU = false;

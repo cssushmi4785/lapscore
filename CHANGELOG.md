@@ -1,6 +1,12 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [1.0.1] - 2026-03-27
+### Fixed
+- Critical: Resolved "Black Screen" on launch in production builds
+- Improved backend persistence using bundled Electron execution environment
+- Fixed path resolution for client assets within the ASAR archive
+
 ## [1.0.0] - 2026-03-27
 ### Added
 - Initial production-ready release

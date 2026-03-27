@@ -2,6 +2,8 @@ const si = require('systeminformation');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const { getBatteryDeepCached } = require('./batteryDeep');
+const { getGpuData } = require('./gpuMonitor');
 
 async function safeFetch(promiseFn, fallback = null) {
   try {
@@ -20,6 +22,7 @@ async function collect() {
 
   // BATTERY
   const batteryInfo = await safeFetch(() => si.battery(), {});
+  const deepBattery = await getBatteryDeepCached();
   
   // Calculate Cycle Count via CycleCounter if available
   let estimatedCycles = 0;
@@ -28,8 +31,9 @@ async function collect() {
     estimatedCycles = cycleCounter.getCycleCount();
   } catch (e) { /* ignore */ }
 
-  const finalCycles = estimatedCycles > 0 ? estimatedCycles : (batteryInfo.cycleCount || 0);
-  const cycleMethod = estimatedCycles > 0 ? 'sampled' : 'reported';
+  // Use powercfg/wmic if available, else fallback to si/cycleCounter
+  const finalCycles = deepBattery.cycleCount ?? (estimatedCycles > 0 ? estimatedCycles : (batteryInfo.cycleCount || 0));
+  const cycleMethod = deepBattery.source || (estimatedCycles > 0 ? 'sampled' : 'reported');
 
   const deriveBatteryCycleIntel = (battery) => {
     const cycles    = battery?.cycleCount ?? 0;
@@ -90,10 +94,21 @@ async function collect() {
     hasBattery: batteryInfo.hasBattery,
     percent: batteryInfo.percent,
     isCharging: batteryInfo.isCharging,
-    manufacturer: batteryInfo.manufacturer,
+    manufacturer: deepBattery.manufacturer || batteryInfo.manufacturer,
     model: batteryInfo.model,
-    chemistry: batteryInfo.type || 'Li-ion',
-    cycleIntel: deriveBatteryCycleIntel({ ...batteryInfo, chemistry: batteryInfo.type, cycleCount: finalCycles })
+    chemistry: deepBattery.chemistry || batteryInfo.type || 'Li-ion',
+    serialNumber: deepBattery.serialNumber || batteryInfo.serial,
+    dataSource: deepBattery.source || 'si',
+    // WMIC real-time status
+    chargePercent: deepBattery.chargePercent ?? batteryInfo.percent,
+    estimatedRunMin: deepBattery.estimatedRunMin ?? batteryInfo.timeRemaining,
+    chargingStatus: deepBattery.chargingStatus || (batteryInfo.isCharging ? 'Charging' : 'Discharging'),
+    cycleIntel: deriveBatteryCycleIntel({ 
+      ...batteryInfo, 
+      chemistry: deepBattery.chemistry || batteryInfo.type, 
+      cycleCount: finalCycles,
+      designLife: deepBattery.designLife
+    })
   };
   if (batteryInfo.designedCapacity && batteryInfo.maxCapacity) {
     scanData.battery.wearPercent = ((batteryInfo.designedCapacity - batteryInfo.maxCapacity) / batteryInfo.designedCapacity) * 100;
@@ -206,16 +221,31 @@ async function collect() {
     scanData.network = null;
   }
 
-  // GPU
+  // GPU — enriched via nvidia-smi if available
+  const gpuDeep = await getGpuData();
   const graphics = await safeFetch(() => si.graphics(), { controllers: [] });
-  scanData.gpu = graphics.controllers.map(g => ({
-    Name: g.model,
-    ConfigManagerErrorCode: 0, // systeminformation doesn't report device manager errors easily
-    Status: "OK",
-    AdapterRAM: g.vram,
-    driverVersion: g.driverVersion,
-    vendor: g.vendor
-  }));
+  
+  if (gpuDeep.present) {
+    scanData.gpu = [{
+      ...gpuDeep,
+      // Keep legacy structure for compatibility if needed elsewhere
+      Name: gpuDeep.name,
+      AdapterRAM: gpuDeep.memTotalMB,
+      Status: "OK"
+    }];
+  } else {
+    const controllers = graphics.controllers.map(g => ({
+      Name: g.model,
+      ConfigManagerErrorCode: 0,
+      Status: "OK",
+      AdapterRAM: g.vram,
+      driverVersion: g.driverVersion,
+      vendor: g.vendor,
+      present: false,
+      reason: 'Standard detection'
+    }));
+    scanData.gpu = controllers.length > 0 ? controllers : [];
+  }
 
   // SYSTEM / OS METADATA
   const osInfo = await safeFetch(() => si.osInfo(), {});

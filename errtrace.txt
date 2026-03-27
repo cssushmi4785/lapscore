@@ -1,0 +1,5 @@
+﻿TypeError: Cannot read properties of undefined (reading 'prepare')
+    at Object.insertScan (C:\Users\prani\Desktop\AI Solutions\Vibe Coding\PCMon\server\db.js:184:19)
+    at ingest (C:\Users\prani\Desktop\AI Solutions\Vibe Coding\PCMon\server\ingest.js:35:6)
+    at [eval]:1:123
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)

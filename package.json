@@ -1,6 +1,6 @@
 {
   "name": "lapscore",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Premium PC Health Monitor with Battery Intelligence, AI Readiness, and Fleet Management.",
   "author": "LapScore Team",
   "main": "electron/main.js",
